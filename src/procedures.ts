@@ -66,7 +66,7 @@ export async function enrolWithProcedure(
 
 /*
 Question:
-  u have now written the same enrolment twice, once in TypeScript (B1) and once in the database (B3).
+  You have now written the same enrolment twice, once in TypeScript (B1) and once in the database (B3).
   What does each version give you, what does it cost, and where would you put it in a system you had to maintain? 
 */
 

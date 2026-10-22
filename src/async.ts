@@ -19,9 +19,24 @@ export interface Overview {
  * try/catch or with a check, and say in a comment which you chose and why.
  */
 export async function firstCourseTitle(studentId: string): Promise<string | undefined> {
-  // TODO
-  throw new Error('not implemented');
+  const student = await findStudent(studentId);
+  
+  if (!student) return undefined;
+  
+  const courses = await coursesFor(studentId);
+
+  if (courses.length === 0) return undefined;
+
+  return courses[0].title;
 }
+
+/*
+
+  Question: Say in a comment whether you handled a missing student with a check or with try/catch, and why.
+  
+  Answer: We handled a missing student with checks for simplicity.
+
+  */
 
 // --- C2. Steps that do not depend on each other ---------------------------
 
@@ -41,14 +56,34 @@ export async function firstCourseTitle(studentId: string): Promise<string | unde
  * because the pool has to open two more connections. Waiting is what makes
  * the difference visible, and on a real server the waiting is real.
  */
+
+interface CountInstance {total: number};
+
 export async function overviewSlowly(): Promise<Overview> {
-  // TODO
-  throw new Error('not implemented');
+
+  const { rows: students } = await pool.query<CountInstance>('select pg_sleep(0.2), count(*)::int total from student');
+  const { rows: courses } = await pool.query<CountInstance>('select pg_sleep(0.2), count(*)::int total from course');
+  const { rows: departments } = await pool.query<CountInstance>('select pg_sleep(0.2), count(*)::int total from department');
+  
+  return {
+    students: students[0].total,
+    courses: courses[0].total,
+    departments: departments[0].total
+  }
 }
 
 export async function overview(): Promise<Overview> {
-  // TODO
-  throw new Error('not implemented');
+  const [students, courses, departments] = await Promise.all([
+    pool.query<CountInstance>('select pg_sleep(0.2), count(*)::int total from student'),
+    pool.query<CountInstance>('select pg_sleep(0.2), count(*)::int total from course'),
+    pool.query<CountInstance>('select pg_sleep(0.2), count(*)::int total from department'),
+  ]);
+
+  return {
+    students: students.rows[0].total,
+    courses: courses.rows[0].total,
+    departments: departments.rows[0].total
+  };
 }
 
 // --- C3. The forgotten await ----------------------------------------------
@@ -71,6 +106,18 @@ export async function removeAndCheckBroken(id: string): Promise<boolean> {
 
 /** The same thing, correct: false when the student is really gone. */
 export async function removeAndCheck(id: string): Promise<boolean> {
-  // TODO
-  throw new Error('not implemented');
-}
+  await deleteStudent(id);
+  const still = await findStudent(id);
+  return still !== undefined;
+} 
+
+/*
+
+Question:
+  Explain in a comment what happens and in which order, and what happens to the error if the delete fails.
+
+Answer: 
+  deleteStudent is missing an await, so findStudent can run before the student is deleted and report that the student is still there.
+  The second problem is when calling this function, it wont say that the deletion failed.
+
+*/
