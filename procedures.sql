@@ -11,6 +11,7 @@
 --
 -- If it is gone, the exercises folder has the file you wrote it in.
 
+DROP FUNCTION IF EXISTS danish_grade(varchar);
 CREATE OR REPLACE FUNCTION danish_grade(p_letter varchar)
 RETURNS varchar
 LANGUAGE sql IMMUTABLE AS $$
@@ -47,17 +48,14 @@ CREATE OR REPLACE FUNCTION student_transcript(p_id varchar)
 RETURNS TABLE (course_id varchar, title varchar, grade varchar)
 LANGUAGE plpgsql AS $$
 BEGIN
-  -- TODO: raise an exception when there is no such student
   IF NOT EXISTS (SELECT 1 FROM student WHERE id = p_id) THEN
     RAISE EXCEPTION 'No student with id %', p_id;
   END IF;
 
-  -- TODO: return the courses this student takes, with converted grades
-  --       RETURN QUERY SELECT ... ;
   RETURN QUERY
     SELECT t.course_id, c.title, danish_grade(t.grade)
     FROM takes t
-    JOIN course c USING (course_id)
+    NATURAL JOIN course c
     WHERE t.id = p_id
     ORDER BY t.course_id;
 END;
