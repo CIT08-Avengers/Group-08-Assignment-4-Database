@@ -3,6 +3,7 @@
 // Write the routines in procedures.sql first, in pgAdmin. Calling them is an
 // ordinary query: a FUNCTION goes inside a SELECT, a PROCEDURE uses CALL.
 
+import { DatabaseError } from 'pg';
 import { pool } from './db.js';
 
 export interface TranscriptRow {
@@ -20,8 +21,15 @@ export interface TranscriptRow {
  * here as a rejected promise. Let it travel on: this one throws.
  */
 export async function transcriptOf(studentId: string): Promise<TranscriptRow[]> {
-  // TODO
-  throw new Error('not implemented');
+  
+  try {
+    const { rows } = await pool.query('select course_id, title, grade from student_transcript($1)', [studentId])
+    return rows
+    
+  } catch (err) {
+    throw err
+  }
+  
 }
 
 /**
@@ -34,8 +42,16 @@ export async function transcriptOf(studentId: string): Promise<TranscriptRow[]> 
  */
 export async function transcriptOrUndefined(
   studentId: string): Promise<TranscriptRow[] | undefined> {
-  // TODO
-  throw new Error('not implemented');
+  try {
+    const { rows } = await pool.query('select course_id, title, grade from student_transcript($1)', [studentId])
+    return rows
+    
+  } catch (err) {
+    if (err instanceof DatabaseError && err.code === 'P0001') {
+      return undefined
+    }
+    throw err
+  }
 }
 
 /**
@@ -51,6 +67,6 @@ export async function transcriptOrUndefined(
 export async function enrolWithProcedure(
   studentId: string, courseId: string, secId: string,
   semester: string, year: number): Promise<number> {
-  // TODO
-  throw new Error('not implemented');
+  const {rows} = await pool.query<{new_total: string}>('CALL enrol_student($1, $2, $3, $4, $5)', [studentId, courseId, secId, semester, year])
+  return Number(rows[0].new_total)
 }

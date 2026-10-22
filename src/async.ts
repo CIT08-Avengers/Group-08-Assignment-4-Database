@@ -1,7 +1,7 @@
 // Part C - asynchronous code against a real database
 
 import { pool } from './db.js';
-import { findStudent, coursesFor, deleteStudent } from './queries.js';
+import { findStudent, coursesFor, deleteStudent, Student } from './queries.js';
 
 export interface Overview {
   students: number;
@@ -19,8 +19,8 @@ export interface Overview {
  * try/catch or with a check, and say in a comment which you chose and why.
  */
 export async function firstCourseTitle(studentId: string): Promise<string | undefined> {
-  // TODO
-  throw new Error('not implemented');
+  const {rows} = await pool.query<{title: string | undefined}>('select * from student s natural join takes t natural join course c where id = $1 order by course_id', [studentId])
+  return rows[0]?.title
 }
 
 // --- C2. Steps that do not depend on each other ---------------------------
@@ -42,13 +42,30 @@ export async function firstCourseTitle(studentId: string): Promise<string | unde
  * the difference visible, and on a real server the waiting is real.
  */
 export async function overviewSlowly(): Promise<Overview> {
-  // TODO
-  throw new Error('not implemented');
+  interface CountInstance {total: number}
+  const { rows: students } = await pool.query<CountInstance>('SELECT pg_sleep(0.2), count(*)::int AS total FROM student')
+  const { rows: courses } = await pool.query<CountInstance>('SELECT pg_sleep(0.2), count(*)::int AS total FROM course')
+  const { rows: departments } = await pool.query<CountInstance>('SELECT pg_sleep(0.2), count(*)::int AS total FROM department')
+  
+  return {
+    students: students.length,
+    courses: courses.length,
+    departments: departments.length
+  }
 }
 
 export async function overview(): Promise<Overview> {
-  // TODO
-  throw new Error('not implemented');
+  interface CountInstance {
+    studentCount: number,
+    courseCount: number,
+    departmentCount: number
+  }
+  const { rows } = await pool.query<CountInstance>('SELECT pg_sleep(0.2), (SELECT count(*)::int FROM student) AS studentCount, (SELECT count(*)::int FROM course) AS courseCount, (SELECT count(*)::int FROM department) AS departmentCount')
+  return {
+    students: rows[0].studentCount,
+    courses: rows[0].courseCount,
+    departments: rows[0].departmentCount,
+  }
 }
 
 // --- C3. The forgotten await ----------------------------------------------
@@ -62,6 +79,9 @@ export async function overview(): Promise<Overview> {
  *
  * There is a second problem, worse than the wrong answer: if the delete
  * fails, who finds out?
+ * Explain in a comment what happens and in which order,
+and what happens to the error if the delete fails
+ * Answer: We are not awaiting the result. Therefore await findstudent function happens fist. If deletion fails we dont find out because rejection is not handled.
  */
 export async function removeAndCheckBroken(id: string): Promise<boolean> {
   deleteStudent(id);
@@ -71,6 +91,7 @@ export async function removeAndCheckBroken(id: string): Promise<boolean> {
 
 /** The same thing, correct: false when the student is really gone. */
 export async function removeAndCheck(id: string): Promise<boolean> {
-  // TODO
-  throw new Error('not implemented');
+  await deleteStudent(id);
+  const still = await findStudent(id);
+  return still !== undefined;
 }
