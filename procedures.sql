@@ -11,6 +11,19 @@
 --
 -- If it is gone, the exercises folder has the file you wrote it in.
 
+CREATE OR REPLACE FUNCTION danish_grade(p_letter varchar)
+RETURNS varchar
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE
+    WHEN p_letter = 'A' THEN '12'
+    WHEN p_letter = 'A-' THEN '10'
+    WHEN p_letter = 'B' THEN '7'
+    WHEN p_letter = 'C+' THEN '4'
+    WHEN p_letter = 'C-' THEN '02'
+    WHEN p_letter = 'F' THEN '00'
+    ELSE NULL
+  END::varchar;
+$$;
 
 -- B2. A FUNCTION that queries and returns a result set.
 --
@@ -29,15 +42,24 @@
 --
 --     DROP FUNCTION student_transcript(varchar);
 
+DROP FUNCTION IF EXISTS student_transcript(varchar);
 CREATE OR REPLACE FUNCTION student_transcript(p_id varchar)
 RETURNS TABLE (course_id varchar, title varchar, grade varchar)
 LANGUAGE plpgsql AS $$
 BEGIN
   -- TODO: raise an exception when there is no such student
+  IF NOT EXISTS (SELECT 1 FROM student WHERE id = p_id) THEN
+    RAISE EXCEPTION 'No student with id %', p_id;
+  END IF;
 
   -- TODO: return the courses this student takes, with converted grades
   --       RETURN QUERY SELECT ... ;
-  RETURN;
+  RETURN QUERY
+    SELECT t.course_id, c.title, danish_grade(t.grade)
+    FROM takes t
+    JOIN course c USING (course_id)
+    WHERE t.id = p_id
+    ORDER BY t.course_id;
 END;
 $$;
 
@@ -58,6 +80,7 @@ $$;
 -- A procedure, not a function, because it exists to change things rather
 -- than to answer a question.
 
+DROP PROCEDURE IF EXISTS enrol_student(varchar, varchar, varchar, varchar, numeric, INOUT numeric);
 CREATE OR REPLACE PROCEDURE enrol_student(
   p_id varchar,
   p_course_id varchar,
@@ -70,7 +93,16 @@ DECLARE
   v_credits numeric;
 BEGIN
   -- TODO
-  NULL;
+  IF NOT EXISTS (SELECT 1 FROM course WHERE course_id = p_course_id) THEN
+    RAISE EXCEPTION 'No course with id %', p_course_id;
+  END IF;
+
+  INSERT INTO takes (id, course_id, sec_id, semester, year, grade)
+  VALUES (p_id, p_course_id, p_sec_id, p_semester, p_year, NULL);
+
+  SELECT credits INTO v_credits FROM course WHERE course_id = p_course_id;
+  UPDATE student SET tot_cred = tot_cred + v_credits WHERE id = p_id;
+  SELECT tot_cred INTO new_total FROM student WHERE id = p_id;
 END;
 $$;
 
